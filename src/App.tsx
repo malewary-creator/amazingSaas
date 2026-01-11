@@ -41,72 +41,75 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-function App() {
+// Route logic component - must be inside ThemeProvider/BackupProvider
+const RouteLogic = () => {
   const { isAuthenticated } = useAuthStore();
   
+  return (
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* Public routes */}
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+            } 
+          />
+          
+          {/* Redirect root to appropriate page */}
+          <Route
+            path="/"
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Protected routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Routes>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/leads/*" element={<LeadsModule />} />
+                    <Route path="/customers/*" element={<CustomersModule />} />
+                    <Route path="/survey/*" element={<SurveyModule />} />
+                    <Route path="/projects/*" element={<ProjectsModule />} />
+                    <Route path="/quotations/*" element={<QuotationsModule />} />
+                    <Route path="/invoices/*" element={<InvoicesModule />} />
+                    <Route path="/payments/*" element={<PaymentsModule />} />
+                    <Route path="/inventory/*" element={<InventoryModule />} />
+                    <Route path="/service/*" element={<ServiceModule />} />
+                    <Route path="/reports/*" element={<ReportsModule />} />
+                    <Route path="/settings/*" element={<SettingsModule />} />
+                    
+                    {/* 404 - redirect to dashboard */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </Router>
+  );
+};
+
+function App() {
   return (
     <>
       <ThemeProvider>
         <BackupProvider>
           <ErrorBoundary>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-            {/* Public routes */}
-            <Route 
-              path="/login" 
-              element={
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
-              } 
-            />
-            
-            {/* Redirect root to appropriate page */}
-            <Route
-              path="/"
-              element={
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-              }
-            />
-            
-            {/* Protected routes */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Routes>
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/leads/*" element={<LeadsModule />} />
-                      <Route path="/customers/*" element={<CustomersModule />} />
-                      <Route path="/survey/*" element={<SurveyModule />} />
-                      <Route path="/projects/*" element={<ProjectsModule />} />
-                      <Route path="/quotations/*" element={<QuotationsModule />} />
-                      <Route path="/invoices/*" element={<InvoicesModule />} />
-                      <Route path="/payments/*" element={<PaymentsModule />} />
-                      <Route path="/inventory/*" element={<InventoryModule />} />
-                      <Route path="/service/*" element={<ServiceModule />} />
-                      <Route path="/reports/*" element={<ReportsModule />} />
-                      <Route path="/settings/*" element={<SettingsModule />} />
-                      
-                      {/* 404 - redirect to dashboard */}
-                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-                  </Routes>
-              </Suspense>
-            </Router>
+            <RouteLogic />
+            <Toaster />
+            <PWAInstallPrompt />
           </ErrorBoundary>
         </BackupProvider>
       </ThemeProvider>
-      
-      {/* Global toast notifications */}
-      <Toaster />
-      
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
     </>
   );
 }
