@@ -18,7 +18,9 @@ import {
   Settings,
   Menu,
   X,
-  LogOut
+  LogOut,
+  User,
+  DollarSign
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -37,6 +39,8 @@ const menuItems = [
   { name: 'Payments', path: '/payments', icon: CreditCard },
   { name: 'Inventory', path: '/inventory', icon: Package },
   { name: 'Service', path: '/service', icon: Headphones },
+  { name: 'Employees', path: '/employees', icon: User },
+  { name: 'Expenses', path: '/expenses', icon: DollarSign },
   { name: 'Reports', path: '/reports', icon: BarChart3 },
   { name: 'Settings', path: '/settings', icon: Settings },
 ];

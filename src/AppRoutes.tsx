@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from '@/store/authStore';
 import LoginPage from '@/modules/auth/LoginPage';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { DataSeeder } from '@/components/DataSeeder';
 import { lazy, Suspense } from 'react';
 
 const Dashboard = lazy(() => import('@/modules/dashboard/Dashboard'));
@@ -16,6 +17,8 @@ const InventoryModule = lazy(() => import('@/modules/inventory/InventoryModule')
 const ServiceModule = lazy(() => import('@/modules/service/ServiceModule'));
 const ReportsModule = lazy(() => import('@/modules/reports/ReportsModule'));
 const SettingsModule = lazy(() => import('@/modules/settings/SettingsModule'));
+const EmployeesModule = lazy(() => import('@/modules/employees/EmployeesModule'));
+const ExpensesModule = lazy(() => import('@/modules/expenses/ExpensesModule'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -70,6 +73,7 @@ export const AppRoutes = () => {
                 <DashboardLayout>
                   <Routes>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/seed-data" element={<DataSeeder />} />
                     <Route path="/leads/*" element={<LeadsModule />} />
                     <Route path="/customers/*" element={<CustomersModule />} />
                     <Route path="/survey/*" element={<SurveyModule />} />
@@ -80,6 +84,8 @@ export const AppRoutes = () => {
                     <Route path="/inventory/*" element={<InventoryModule />} />
                     <Route path="/service/*" element={<ServiceModule />} />
                     <Route path="/reports/*" element={<ReportsModule />} />
+                    <Route path="/employees/*" element={<EmployeesModule />} />
+                    <Route path="/expenses/*" element={<ExpensesModule />} />
                     <Route path="/settings/*" element={<SettingsModule />} />
 
                     {/* 404 - redirect to dashboard */}

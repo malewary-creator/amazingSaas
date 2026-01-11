@@ -32,6 +32,15 @@ import type {
   Branch,
   AuditLog,
   ProjectMaterial,
+  Employee,
+  SalarySetup,
+  Attendance,
+  Leave,
+  AdvanceDeduction,
+  SalarySheet,
+  DailyExpense,
+  WorkAssignment,
+  EmployeeNote,
 } from '@/types';
 
 export class ShineSolarDB extends Dexie {
@@ -89,6 +98,19 @@ export class ShineSolarDB extends Dexie {
 
   // Audit & Security
   auditLogs!: Table<AuditLog, number>;
+
+  // HR & Employees
+  employees!: Table<Employee, number>;
+  salarySetups!: Table<SalarySetup, number>;
+  attendance!: Table<Attendance, number>;
+  leaves!: Table<Leave, number>;
+  advanceDeductions!: Table<AdvanceDeduction, number>;
+  salarySheets!: Table<SalarySheet, number>;
+  workAssignments!: Table<WorkAssignment, number>;
+  employeeNotes!: Table<EmployeeNote, number>;
+
+  // Expenses
+  dailyExpenses!: Table<DailyExpense, number>;
 
   constructor() {
     super('ShineSolarDB');
@@ -158,6 +180,19 @@ export class ShineSolarDB extends Dexie {
     // Add new stores in a bumped version for schema evolution
     this.version(2).stores({
       projectMaterials: '++id, projectId, itemId, status, date',
+    });
+
+    // Add HR module tables in version 3
+    this.version(3).stores({
+      employees: '++id, employeeId, category, status, joiningDate, assignedProject, branchId',
+      salarySetups: '++id, employeeId, status, effectiveDate',
+      attendance: '++id, employeeId, date, status, branchId',
+      leaves: '++id, employeeId, leaveType, fromDate, toDate, status, branchId',
+      advanceDeductions: '++id, employeeId, type, date, status, branchId',
+      salarySheets: '++id, employeeId, [month+year], status, branchId',
+      workAssignments: '++id, employeeId, projectId, assignedDate, status',
+      employeeNotes: '++id, employeeId, noteType, createdBy',
+      dailyExpenses: '++id, expenseId, date, category, projectId, status, branchId',
     });
   }
 

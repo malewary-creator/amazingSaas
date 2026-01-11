@@ -486,3 +486,6 @@ export interface ProjectStage {
 // Re-export extended types
 export * from './extended';
 
+// Re-export HR types
+export * from './hr';
+
