@@ -62,20 +62,28 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
   
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div
+      className="min-h-screen flex"
+      style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text, #1e293b)' }}
+    >
       {/* Sidebar - Fixed and Full Height */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 transition-all duration-300 z-30 ${
+        className={`fixed left-0 top-0 h-screen transition-all duration-300 z-30 ${
           sidebarCollapsed ? 'w-20' : 'w-64'
         }`}
+        style={{ backgroundColor: 'var(--color-surface)', borderRight: '1px solid var(--color-border)' }}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+        <div
+          className="h-16 flex items-center justify-between px-4"
+          style={{ borderBottom: '1px solid var(--color-border)' }}
+        >
           {!sidebarCollapsed && (
             <h1 className="text-xl font-bold text-orange-600">☀️ Shine Solar</h1>
           )}
           <button
             onClick={toggleSidebar}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ backgroundColor: 'transparent' }}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {sidebarCollapsed ? <Menu size={20} /> : <X size={20} />}
@@ -83,7 +91,9 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
         
         {/* Scrollable Navigation */}
-        <nav className="h-[calc(100vh-4rem)] overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <nav className="h-[calc(100vh-4rem)] overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-track-transparent"
+          style={{ backgroundColor: 'var(--color-surface)' }}
+        >
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.path);
@@ -112,9 +122,12 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         sidebarCollapsed ? 'ml-20' : 'ml-64'
       }`}>
         {/* Header - Sticky at top with dynamic shadow */}
-        <header className={`sticky top-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-20 transition-shadow duration-200 ${
-          isScrolled ? 'shadow-md' : 'shadow-sm'
-        }`}>
+        <header
+          className={`sticky top-0 h-16 flex items-center justify-between px-6 z-20 transition-shadow duration-200 ${
+            isScrolled ? 'shadow-md' : 'shadow-sm'
+          }`}
+          style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
+        >
           <h2 className="text-xl font-semibold text-gray-800">
             {menuItems.find(item => location.pathname.startsWith(item.path))?.name || 'Dashboard'}
           </h2>
