@@ -14,14 +14,15 @@ const AppearanceSettings: React.FC = () => {
     setAppearanceState(current);
   }, [current]);
 
-  const save = async () => {
+  const apply = async (next: Partial<AppearanceSettingsType>) => {
+    setAppearanceState(prev => ({ ...prev, ...next }));
     try {
       setSaving(true);
-      await setAppearance(appearance);
-      success('Appearance saved');
+      await setAppearance(next);
+      success('Appearance updated');
     } catch (err) {
-      console.error('Failed to save appearance', err);
-      error('Failed to save appearance');
+      console.error('Failed to update appearance', err);
+      error('Failed to update appearance');
     } finally {
       setSaving(false);
     }
@@ -35,10 +36,10 @@ const AppearanceSettings: React.FC = () => {
         <div>
           <div className="text-sm text-gray-700 mb-2">Theme</div>
           <div className="flex items-center gap-3">
-            <button onClick={()=>setAppearanceState({...appearance, theme: 'light'})} className={`px-4 py-2 rounded-lg border ${appearance.theme==='light'?'bg-gray-100 border-gray-300':'border-gray-200 hover:bg-gray-50'}`}>
+            <button onClick={()=>apply({ theme: 'light' })} className={`px-4 py-2 rounded-lg border ${appearance.theme==='light'?'bg-gray-100 border-gray-300':'border-gray-200 hover:bg-gray-50'}`}>
               <Sun className="w-4 h-4 inline mr-2" /> Light
             </button>
-            <button onClick={()=>setAppearanceState({...appearance, theme: 'dark'})} className={`px-4 py-2 rounded-lg border ${appearance.theme==='dark'?'bg-gray-100 border-gray-300':'border-gray-200 hover:bg-gray-50'}`}>
+            <button onClick={()=>apply({ theme: 'dark' })} className={`px-4 py-2 rounded-lg border ${appearance.theme==='dark'?'bg-gray-100 border-gray-300':'border-gray-200 hover:bg-gray-50'}`}>
               <Moon className="w-4 h-4 inline mr-2" /> Dark
             </button>
           </div>
@@ -46,12 +47,12 @@ const AppearanceSettings: React.FC = () => {
 
         <div>
           <div className="text-sm text-gray-700 mb-2">Primary Color</div>
-          <input type="color" value={appearance.primaryColor} onChange={e=>setAppearanceState({...appearance, primaryColor: e.target.value})} />
+          <input type="color" value={appearance.primaryColor} onChange={e=>apply({ primaryColor: e.target.value })} />
         </div>
 
         <div>
           <div className="text-sm text-gray-700 mb-2">Font Size</div>
-          <select className="px-3 py-2 border rounded-lg" value={appearance.fontSize} onChange={e=>setAppearanceState({...appearance, fontSize: e.target.value as any})}>
+          <select className="px-3 py-2 border rounded-lg" value={appearance.fontSize} onChange={e=>apply({ fontSize: e.target.value as any })}>
             <option value="small">Small</option>
             <option value="medium">Medium</option>
             <option value="large">Large</option>
@@ -59,12 +60,12 @@ const AppearanceSettings: React.FC = () => {
         </div>
 
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={appearance.compactMode} onChange={e=>setAppearanceState({...appearance, compactMode: e.target.checked})} />
+          <input type="checkbox" checked={appearance.compactMode} onChange={e=>apply({ compactMode: e.target.checked })} />
           <span className="text-sm text-gray-700">Compact Mode</span>
         </label>
       </div>
 
-      <button onClick={save} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+      <button onClick={()=>apply({})} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
         <Save className="w-4 h-4" /> {saving? 'Saving...' : 'Save Preferences'}
       </button>
     </div>
