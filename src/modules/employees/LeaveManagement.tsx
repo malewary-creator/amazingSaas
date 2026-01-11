@@ -3,6 +3,7 @@ import { leaveService } from '@/services/leaveService';
 import { employeeService } from '@/services/employeeService';
 import type { Employee, Leave } from '@/types';
 import { Plus, CheckCircle2, XCircle, AlertCircle, Calendar } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'LossOfPay'] as const;
 
@@ -101,7 +102,8 @@ export const LeaveManagement: React.FC = () => {
     if (!window.confirm('Approve this leave request?')) return;
 
     try {
-      const approverUserId = 1; // This should come from auth store
+        const { user } = useAuthStore.getState();
+        const approverUserId = user?.id || 1;
       await leaveService.approveLeave(leaveId, approverUserId);
       setMessage({ type: 'success', text: 'Leave approved successfully' });
       await loadData();

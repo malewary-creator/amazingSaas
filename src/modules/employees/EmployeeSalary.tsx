@@ -107,6 +107,46 @@ export const EmployeeSalary: React.FC = () => {
     }
   };
 
+    const handleDownloadSalary = (sheet: SalarySheet) => {
+      if (!employee) return;
+
+      // Create CSV content
+      const csvContent = [
+        ['Salary Slip'],
+        [''],
+        ['Company', 'Shine Electrical'],
+        ['Employee Name', employee.name],
+        ['Employee ID', employee.employeeId],
+        ['Month/Year', `${new Date(sheet.year, sheet.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`],
+        [''],
+        ['Attendance Details'],
+        ['Present Days', sheet.presentDays],
+        ['Paid Leave Days', sheet.paidLeaveDays],
+        ['Unpaid Leave Days', sheet.unpaidLeaveDays],
+        [''],
+        ['Salary Details'],
+        ['Total Earnings', `₹ ${sheet.totalEarnings.toLocaleString('en-IN')}`],
+        ['Deductions', `₹ ${(sheet.totalEarnings - sheet.netSalary).toLocaleString('en-IN')}`],
+        ['Net Salary', `₹ ${sheet.netSalary.toLocaleString('en-IN')}`],
+        ['Status', sheet.status],
+        ...(sheet.paidOn ? [['Paid On', new Date(sheet.paidOn).toLocaleDateString('en-IN')]] : []),
+        ...(sheet.paymentMode ? [['Payment Mode', sheet.paymentMode]] : []),
+      ]
+        .map(row => row.join(','))
+        .join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Salary_Slip_${employee.employeeId}_${sheet.month}_${sheet.year}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -338,6 +378,13 @@ export const EmployeeSalary: React.FC = () => {
                         >
                           <Download className="w-5 h-5" />
                         </button>
+                          <button
+                            onClick={() => handleDownloadSalary(sheet)}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Download as CSV"
+                          >
+                            <Download className="w-5 h-5" />
+                          </button>
                       </div>
                     </div>
                   </div>

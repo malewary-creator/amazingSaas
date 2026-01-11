@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from '@/store/authStore';
 import LoginPage from '@/modules/auth/LoginPage';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { DataSeeder } from '@/components/DataSeeder';
 import { lazy, Suspense } from 'react';
 
 const Dashboard = lazy(() => import('@/modules/dashboard/Dashboard'));
@@ -73,7 +72,7 @@ export const AppRoutes = () => {
                 <DashboardLayout>
                   <Routes>
                     <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/seed-data" element={<DataSeeder />} />
+                    <Route path="/seed-data" element={<Navigate to="/settings" replace />} />
                     <Route path="/leads/*" element={<LeadsModule />} />
                     <Route path="/customers/*" element={<CustomersModule />} />
                     <Route path="/survey/*" element={<SurveyModule />} />

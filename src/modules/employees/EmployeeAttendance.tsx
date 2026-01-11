@@ -88,6 +88,8 @@ export const EmployeeAttendance: React.FC = () => {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+  const currentYear = new Date().getFullYear();
+  const yearRange = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
     <div className="space-y-6">
@@ -112,7 +114,7 @@ export const EmployeeAttendance: React.FC = () => {
         <div className="flex gap-3">
           <select
             value={selectedMonth}
-            onChange={e => setSelectedMonth(parseInt(e.target.value))}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
           >
             {months.map((month, idx) => (
@@ -123,10 +125,10 @@ export const EmployeeAttendance: React.FC = () => {
           </select>
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(parseInt(e.target.value))}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
           >
-            {[2024, 2025, 2026].map(year => (
+            {yearRange.map((year) => (
               <option key={year} value={year}>
                 {year}
               </option>
@@ -215,28 +217,16 @@ export const EmployeeAttendance: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Check In
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Check Out
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Hours
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Site
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Check In</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Check Out</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hours</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Site</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {attendance.map(record => (
+                {attendance.map((record) => (
                   <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       {new Date(record.date).toLocaleDateString('en-IN', {
@@ -251,10 +241,10 @@ export const EmployeeAttendance: React.FC = () => {
                           record.status === 'Present'
                             ? 'bg-emerald-100 text-emerald-700'
                             : record.status === 'Absent'
-                              ? 'bg-red-100 text-red-700'
-                              : record.status === 'Half-day'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-blue-100 text-blue-700'
+                            ? 'bg-red-100 text-red-700'
+                            : record.status === 'Half-day'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
                         }`}
                       >
                         {record.status}
