@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { invoicesService } from '@/services/invoicesService';
 import { db } from '@/services/database';
+import { settingsService, type CompanySettings } from '@/services/settingsService';
 import type { Invoice, InvoiceItem } from '@/types/extended';
 import type { Customer, Project } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +38,7 @@ export function InvoiceDetails() {
   const [lineItems, setLineItems] = useState<InvoiceItem[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [project, setProject] = useState<Project | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState(false);
   const [paymentsSummary, setPaymentsSummary] = useState<{ totalReceived: number; lastPaymentDate?: Date } | null>(null);
@@ -45,6 +47,13 @@ export function InvoiceDetails() {
   useEffect(() => {
     loadInvoiceDetails();
   }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const company = await settingsService.getCompanySettings();
+      if (company) setCompanySettings(company);
+    })();
+  }, []);
 
   // Reload invoice details when page comes into focus
   useEffect(() => {
@@ -137,23 +146,45 @@ export function InvoiceDetails() {
     doc.setLineHeightFactor(1.3);
 
     // === PREMIUM HEADER (Left: Company, Right: Invoice Meta) ===
-    
+    const companyName = companySettings?.companyName || 'Shine Electrical & Solar';
+    const companyTagline = companySettings?.businessType || 'Professional Solar EPC • Installation • Maintenance';
+    const companyPhone = companySettings?.phone || '+91 XXXXX XXXXX';
+    const companyEmail = companySettings?.email || 'info@shinesolar.com';
+    const companyAddress = companySettings?.address || 'Mumbai, India';
+    const companyGSTIN = inv.companyGSTIN || 'Not Provided';
+    const hasLogo = Boolean(companySettings?.logo);
+
     // LEFT SIDE: Company Details
+    if (companySettings?.logo) {
+      try {
+        const imgType = companySettings.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(companySettings.logo, imgType as any, margin, y - 2, 20, 20, undefined, 'FAST');
+      } catch (err) {
+        console.warn('Failed to render logo in invoice PDF', err);
+      }
+    }
+
+    const textOffset = hasLogo ? 24 : 0;
+
     doc.setFont('NotoSans', 'bold');
     doc.setFontSize(20);
     doc.setTextColor(30, 64, 175); // Corporate blue
-    doc.text('Shine Electrical & Solar', margin, y);
+    doc.text(companyName, margin + textOffset, y);
     
     // Tagline (Smaller, Muted)
     doc.setFont('NotoSans', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(107, 114, 128); // Muted gray
-    doc.text('Professional Solar EPC • Installation • Maintenance', margin, y + 6);
+    doc.text(companyTagline, margin + textOffset, y + 6);
     
     // Company GSTIN
     doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
-    doc.text(`GSTIN: ${inv.companyGSTIN || 'Not Provided'}`, margin, y + 11);
+    doc.text(`GSTIN: ${companyGSTIN}`, margin + textOffset, y + 11);
+
+    // Address and contact
+    doc.text(`${companyAddress}`, margin + textOffset, y + 16);
+    doc.text(`Phone: ${companyPhone}  |  Email: ${companyEmail}`, margin + textOffset, y + 20);
     
     // RIGHT SIDE: Invoice Meta (Clean, no box)
     const rightX = pageWidth - margin;

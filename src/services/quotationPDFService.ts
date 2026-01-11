@@ -8,6 +8,7 @@ import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import type { Quotation, QuotationItem } from '@/types';
 import { NotoSansBase64 } from '@/utils/notoSansBase64';
+import { settingsService } from './settingsService';
 
 interface PDFGeneratorOptions {
   logoPath?: string;
@@ -113,6 +114,27 @@ export class QuotationPDFService {
     // Gradient-style background (light blue)
     this.doc.setFillColor(240, 249, 255);
     this.doc.rect(this.margin, this.margin, this.pageWidth - 2 * this.margin, headerHeight, 'F');
+
+    // Optional logo on the left
+    if (this.options.logoPath) {
+      try {
+        const imgType = this.options.logoPath.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        const logoWidth = 24;
+        const logoHeight = 24;
+        this.doc.addImage(
+          this.options.logoPath,
+          imgType as any,
+          this.margin + 2,
+          this.margin + 3,
+          logoWidth,
+          logoHeight,
+          undefined,
+          'FAST'
+        );
+      } catch (err) {
+        console.warn('Failed to render logo in quotation PDF', err);
+      }
+    }
 
     // Company name (bold, larger)
     this.doc.setFont('NotoSans', 'bold');
@@ -252,13 +274,13 @@ export class QuotationPDFService {
         fontSize: 9,
         fontStyle: 'bold',
         halign: 'center',
-        padding: 4,
+        cellPadding: 4,
         font: 'NotoSans',
       },
       bodyStyles: {
         fontSize: 8,
         halign: 'center',
-        padding: 3,
+        cellPadding: 3,
         font: 'NotoSans',
       },
       columnStyles: Object.assign(
@@ -311,12 +333,12 @@ export class QuotationPDFService {
         fontSize: 10,
         fontStyle: 'bold',
         halign: 'center',
-        padding: 5,
+        cellPadding: 5,
         font: 'NotoSans',
       },
       bodyStyles: {
         fontSize: 9,
-        padding: 4,
+        cellPadding: 4,
         font: 'NotoSans',
       },
       columnStyles: {
@@ -489,12 +511,12 @@ export class QuotationPDFService {
         fontSize: 10,
         fontStyle: 'bold',
         halign: 'center',
-        padding: 5,
+        cellPadding: 5,
         font: 'NotoSans',
       },
       bodyStyles: {
         fontSize: 9,
-        padding: 4,
+        cellPadding: 4,
         font: 'NotoSans',
       },
       columnStyles: {
@@ -648,7 +670,17 @@ export async function generateQuotationPDF(
   quotation: Quotation & { items?: QuotationItem[] },
   options?: Partial<PDFGeneratorOptions>
 ): Promise<void> {
-  const service = new QuotationPDFService(options);
+  const company = await settingsService.getCompanySettings();
+  const branding: Partial<PDFGeneratorOptions> = {
+    companyName: company?.companyName || DEFAULT_OPTIONS.companyName,
+    companyAddress: company?.address || DEFAULT_OPTIONS.companyAddress,
+    companyPhone: company?.phone || DEFAULT_OPTIONS.companyPhone,
+    companyEmail: company?.email || DEFAULT_OPTIONS.companyEmail,
+    companyWebsite: company?.website || DEFAULT_OPTIONS.companyWebsite,
+    logoPath: company?.logo,
+    tagline: company?.businessType || DEFAULT_OPTIONS.tagline,
+  };
+  const service = new QuotationPDFService({ ...branding, ...options });
   const filename = `Quotation-${quotation.clientName || 'Document'}-${new Date().getTime()}.pdf`;
   await service.generateQuotationPDF(quotation, filename);
 }
@@ -660,7 +692,17 @@ export async function getQuotationPDFBlob(
   quotation: Quotation & { items?: QuotationItem[] },
   options?: Partial<PDFGeneratorOptions>
 ): Promise<Blob> {
-  const service = new QuotationPDFService(options);
+  const company = await settingsService.getCompanySettings();
+  const branding: Partial<PDFGeneratorOptions> = {
+    companyName: company?.companyName || DEFAULT_OPTIONS.companyName,
+    companyAddress: company?.address || DEFAULT_OPTIONS.companyAddress,
+    companyPhone: company?.phone || DEFAULT_OPTIONS.companyPhone,
+    companyEmail: company?.email || DEFAULT_OPTIONS.companyEmail,
+    companyWebsite: company?.website || DEFAULT_OPTIONS.companyWebsite,
+    logoPath: company?.logo,
+    tagline: company?.businessType || DEFAULT_OPTIONS.tagline,
+  };
+  const service = new QuotationPDFService({ ...branding, ...options });
   await (service as any).generateQuotationPDF(quotation);
   return service.getBlob();
 }
