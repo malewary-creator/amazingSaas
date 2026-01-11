@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
-  color: #1e293b;
+  color: var(--color-text, #1e293b);
 }
 
 code {
