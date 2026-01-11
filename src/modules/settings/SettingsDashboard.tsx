@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Percent, Paintbrush, DatabaseBackup, Rocket } from 'lucide-react';
+import { Building2, Percent, Paintbrush, DatabaseBackup, Rocket, Sparkles } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { seedService } from '@/services/seedService';
 import { toast } from '@/store/toastStore';
+import { useTheme } from '@/context/ThemeProvider';
 
 const SettingsDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { appearance } = useTheme();
   const [summary, setSummary] = useState<{ company?: string; gst?: number; theme?: string; records?: number }>({});
   const [seeding, setSeeding] = useState(false);
 
@@ -103,8 +105,40 @@ const SettingsDashboard: React.FC = () => {
           onClick={()=>navigate('/settings/company')} />
         <Card icon={<Percent className="w-6 h-6 text-gray-700" />} title="Tax & GST" desc={`Default GST: ${summary.gst}%`}
           onClick={()=>navigate('/settings/tax')} />
-        <Card icon={<Paintbrush className="w-6 h-6 text-gray-700" />} title="Appearance" desc={`Theme: ${summary.theme}`}
-          onClick={()=>navigate('/settings/appearance')} />
+        
+        {/* Enhanced Appearance Card */}
+        <button 
+          onClick={()=>navigate('/settings/appearance')} 
+          className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-blue-200 dark:border-slate-700 p-6 text-left hover:shadow-md transition-all group hover:border-blue-300 dark:hover:border-slate-600"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-slate-700 dark:to-slate-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Paintbrush className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <Sparkles className="w-5 h-5 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-white">Appearance</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Customize theme, colors & typography
+          </p>
+          
+          {/* Color & Theme Preview */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-blue-200 dark:border-slate-700">
+            <div 
+              className="w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 shadow-sm"
+              style={{ backgroundColor: appearance.primaryColor }}
+            />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {appearance.theme === 'dark' ? '🌙 Dark' : '☀️ Light'} · {appearance.fontSize.charAt(0).toUpperCase() + appearance.fontSize.slice(1)}
+            </span>
+            {appearance.compactMode && (
+              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-200 px-2 py-0.5 rounded ml-auto">
+                Compact
+              </span>
+            )}
+          </div>
+        </button>
+        
         <Card icon={<DatabaseBackup className="w-6 h-6 text-gray-700" />} title="Backup & Restore" desc={`${summary.records || 0} records`} 
           onClick={()=>navigate('/settings/backup')} />
       </div>
