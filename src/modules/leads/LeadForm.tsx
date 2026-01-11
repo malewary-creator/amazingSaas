@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Save, X } from 'lucide-react';
 import { leadsService } from '@/services/leadsService';
 import { db } from '@/services/database';
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 export default function LeadForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToastStore();
   const { user } = useAuthStore();
   const isEdit = !!id;
@@ -62,6 +63,12 @@ export default function LeadForm() {
     loadCustomers();
     if (isEdit) {
       loadLead();
+    } else {
+      // Pre-fill customer if customerId is passed in URL params
+      const customerId = searchParams.get('customerId');
+      if (customerId) {
+        handleCustomerSelect(parseInt(customerId));
+      }
     }
   }, [id]);
 
@@ -123,6 +130,7 @@ export default function LeadForm() {
   const handleCustomerSelect = async (customerId: number) => {
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
+      setIsNewCustomer(false);
       setSelectedCustomerId(customer.id!);
       setCustomerName(customer.name);
       setCustomerMobile(customer.mobile);

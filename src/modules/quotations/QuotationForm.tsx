@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Save, Send, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { quotationsService } from '@/services/quotationsService';
 import { db } from '@/services/database';
@@ -22,6 +22,7 @@ interface LineItem extends Omit<QuotationItem, 'id' | 'quotationId' | 'itemId'> 
 export function QuotationForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { success, error } = useToastStore();
   const user = useAuthStore((state) => state.user);
 
@@ -65,6 +66,12 @@ export function QuotationForm() {
     } else {
       // Add default line item
       addLineItem();
+      
+      // Pre-fill customerId if passed in URL params
+      const customerId = searchParams.get('customerId');
+      if (customerId) {
+        setFormData(prev => ({ ...prev, customerId }));
+      }
     }
   }, [id]);
 
