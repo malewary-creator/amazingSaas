@@ -5,6 +5,7 @@
 
 import { db } from './database';
 import type { Employee, EmployeeCategory } from '@/types';
+import { auditService } from './auditService';
 
 export const employeeService = {
   async generateEmployeeId(): Promise<string> {
@@ -27,23 +28,62 @@ export const employeeService = {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    return (await db.employees.add(employee)) as number;
+    const id = (await db.employees.add(employee)) as number;
+    await auditService.logEvent('hr.employee', 'Create', {
+      entity: 'Employee',
+      entityId: id,
+      recordId: id,
+      newValue: employee,
+      branchId: employee.branchId,
+    });
+    return id;
   },
 
   async updateEmployee(id: number, data: Partial<Employee>): Promise<void> {
+    const existing = await db.employees.get(id);
+    if (!existing) throw new Error('Employee not found');
     await db.employees.update(id, { ...data, updatedAt: new Date() });
+    const updated = await db.employees.get(id);
+    await auditService.logEvent('hr.employee', 'Update', {
+      entity: 'Employee',
+      entityId: id,
+      recordId: id,
+      oldValue: existing,
+      newValue: updated,
+      branchId: existing.branchId,
+    });
   },
 
   async deleteEmployee(id: number): Promise<void> {
+    const existing = await db.employees.get(id);
+    if (!existing) throw new Error('Employee not found');
+
     // Check if employee has any attendance or leave records
     const attendance = await db.attendance.where('employeeId').equals(id).count();
     const leaves = await db.leaves.where('employeeId').equals(id).count();
     
     if (attendance > 0 || leaves > 0) {
+      await auditService.logEvent('hr.employee', 'Delete', {
+        entity: 'Employee',
+        entityId: id,
+        recordId: id,
+        oldValue: existing,
+        newValue: { blocked: true, attendanceCount: attendance, leaveCount: leaves },
+        branchId: existing.branchId,
+        reason: 'Blocked delete due to dependent HR records',
+      });
       throw new Error('Cannot delete employee with attendance or leave records. Mark as inactive instead.');
     }
-    
+
     await db.employees.delete(id);
+
+    await auditService.logEvent('hr.employee', 'Delete', {
+      entity: 'Employee',
+      entityId: id,
+      recordId: id,
+      oldValue: existing,
+      branchId: existing.branchId,
+    });
   },
 
   async getEmployees(filters?: {

@@ -1,16 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Moon, 
   Sun, 
   Palette, 
   Type, 
-  Layout,
   Check,
   RotateCcw,
   Eye
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeProvider';
-import type { AppearanceSettings as AppearanceSettingsType } from '@/services/settingsService';
 import { useToastStore } from '@/store/toastStore';
 
 // Predefined color palettes for quick selection
@@ -31,7 +29,7 @@ const FONT_SIZES = [
 ];
 
 interface PreviewState {
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'auto';
   primaryColor: string;
   fontSize: 'small' | 'medium' | 'large';
   compactMode: boolean;
@@ -83,15 +81,19 @@ const AppearanceSettings: React.FC = () => {
     setHasChanges(false);
   };
 
+  const effectiveTheme: 'light' | 'dark' = preview.theme === 'auto'
+    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : preview.theme;
+
   const getPreviewBackgroundColor = () => {
-    if (preview.theme === 'dark') {
+    if (effectiveTheme === 'dark') {
       return 'bg-slate-950';
     }
     return 'bg-white border border-gray-200';
   };
 
   const getPreviewTextColor = () => {
-    return preview.theme === 'dark' ? 'text-gray-100' : 'text-gray-900';
+    return effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900';
   };
 
   return (

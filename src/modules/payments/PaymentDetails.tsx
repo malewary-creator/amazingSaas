@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Edit, Trash2, IndianRupee, Calendar, FileText, Download, Printer, AlertCircle, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, IndianRupee, FileText, Download, Printer, AlertCircle, CheckCircle } from 'lucide-react';
 import { paymentsService } from '@/services/paymentsService';
 import { db } from '@/services/database';
 import { Button } from '@/components/ui/Button';
@@ -78,6 +78,9 @@ export function PaymentDetails() {
 
   const generatePaymentReceipt = () => {
     if (!payment || !invoice) throw new Error('Missing payment or invoice data');
+
+    const invoiceAmountPaid = invoice.amountPaid ?? 0;
+    const invoiceBalanceAmount = invoice.balanceAmount ?? Math.max(invoice.grandTotal - invoiceAmountPaid, 0);
 
     const pdf = new jsPDF('portrait', 'mm', 'A4');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -174,12 +177,12 @@ export function PaymentDetails() {
     setBold();
     pdf.text('Paid:', margin + 3, yPosition);
     setNormal();
-    pdf.text(formatCurrency(invoice.amountPaid), margin + 30, yPosition);
+    pdf.text(formatCurrency(invoiceAmountPaid), margin + 30, yPosition);
     
     setBold();
     pdf.text('Balance:', rightColX, yPosition);
     setNormal();
-    const balanceText = invoice.balanceAmount > 0 ? formatCurrency(invoice.balanceAmount) : '₹0.00';
+    const balanceText = invoiceBalanceAmount > 0 ? formatCurrency(invoiceBalanceAmount) : '₹0.00';
     pdf.text(balanceText, rightColX + 20, yPosition);
     
     yPosition += 10;
@@ -217,16 +220,16 @@ export function PaymentDetails() {
       yPosition += 8;
     }
 
-    if (payment.notes) {
+    if (payment.remarks) {
       yPosition += 4;
       pdf.setFontSize(10);
       setBold();
       pdf.setTextColor(70, 78, 84);
-      pdf.text('Notes:', margin, yPosition);
+      pdf.text('Remarks:', margin, yPosition);
       yPosition += 5;
       setNormal();
       pdf.setTextColor(100, 116, 139);
-      const noteLines = pdf.splitTextToSize((payment as any).notes || '', printableWidth - 5);
+      const noteLines = pdf.splitTextToSize(payment.remarks || '', printableWidth - 5);
       pdf.text(noteLines, margin + 3, yPosition);
       yPosition += noteLines.length * 4 + 2;
     }
@@ -274,6 +277,12 @@ export function PaymentDetails() {
 
   const isPaymentConfirmed = payment.status === 'Received';
   const isPaymentBounced = payment.status === 'Bounced';
+
+  const invoiceAmountPaid = invoice?.amountPaid ?? 0;
+  const invoiceBalanceAmount = invoice ? (invoice.balanceAmount ?? Math.max(invoice.grandTotal - invoiceAmountPaid, 0)) : 0;
+  const invoicePaidPercent = invoice && invoice.grandTotal > 0
+    ? Math.min((invoiceAmountPaid / invoice.grandTotal) * 100, 100)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -378,12 +387,12 @@ export function PaymentDetails() {
               </div>
               <div className="border-t border-blue-200 pt-2 flex justify-between">
                 <span className="text-gray-600">Total Paid:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(invoice.amountPaid)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(invoiceAmountPaid)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Balance Remaining:</span>
-                <span className={`font-bold ${invoice.balanceAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                  {formatCurrency(invoice.balanceAmount)}
+                <span className={`font-bold ${invoiceBalanceAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  {formatCurrency(invoiceBalanceAmount)}
                 </span>
               </div>
               <div className="mt-2 pt-2 border-t border-blue-200">
@@ -391,11 +400,11 @@ export function PaymentDetails() {
                   <div className="flex-1 bg-gray-300 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{width: `${Math.min((invoice.amountPaid / invoice.grandTotal) * 100, 100)}%`}}
+                      style={{width: `${invoicePaidPercent}%`}}
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-600">
-                    {Math.round((invoice.amountPaid / invoice.grandTotal) * 100)}%
+                    {Math.round(invoicePaidPercent)}%
                   </span>
                 </div>
               </div>
@@ -405,14 +414,14 @@ export function PaymentDetails() {
       </div>
 
       {/* Notes Section */}
-      {(payment as any).notes && (
+      {payment.remarks && (
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-2">
             <FileText className="w-4 h-4"/>
-            Notes
+            Remarks
           </h3>
           <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded border border-gray-200">
-            {(payment as any).notes}
+            {payment.remarks}
           </p>
         </Card>
       )}

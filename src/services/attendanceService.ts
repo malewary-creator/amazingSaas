@@ -5,6 +5,9 @@
 
 import { db } from './database';
 import type { Attendance, AttendanceSummary } from '@/types';
+import { auditService } from './auditService';
+import { hrGuards } from './hrGuards';
+import { workCalendarService } from './workCalendarService';
 
 export const attendanceService = {
   async recordAttendance(data: Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
@@ -13,7 +16,15 @@ export const attendanceService = {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    return (await db.attendance.add(attendance)) as number;
+    const id = (await db.attendance.add(attendance)) as number;
+    await auditService.logEvent('hr.attendance', 'Create', {
+      entity: 'Attendance',
+      entityId: id,
+      recordId: id,
+      newValue: attendance,
+      branchId: attendance.branchId,
+    });
+    return id;
   },
 
   async checkIn(employeeId: number, siteId?: string): Promise<number> {
@@ -71,10 +82,34 @@ export const attendanceService = {
       workingHours: parseFloat(workingHours.toFixed(2)),
       updatedAt: new Date(),
     });
+
+    await auditService.logEvent('hr.attendance', 'Update', {
+      entity: 'Attendance',
+      entityId: record.id,
+      recordId: record.id,
+      oldValue: record,
+      newValue: { ...record, checkOutTime, workingHours: parseFloat(workingHours.toFixed(2)) },
+      branchId: (record as any).branchId,
+    });
   },
 
-  async updateAttendance(id: number, data: Partial<Attendance>): Promise<void> {
+  async updateAttendance(id: number, data: Partial<Attendance>, meta?: { userId?: number; reason?: string }): Promise<void> {
+    const existing = await db.attendance.get(id);
+    if (!existing) throw new Error('Attendance record not found');
+    hrGuards.assertAttendanceMutable(existing, 'edit attendance');
+
     await db.attendance.update(id, { ...data, updatedAt: new Date() });
+    const updated = await db.attendance.get(id);
+    await auditService.logEvent('hr.attendance', 'Update', {
+      entity: 'Attendance',
+      entityId: id,
+      recordId: id,
+      oldValue: existing,
+      newValue: updated,
+      userId: meta?.userId,
+      reason: meta?.reason,
+      branchId: existing.branchId,
+    });
   },
 
   async getAttendance(employeeId: number, month: number, year: number): Promise<Attendance[]> {
@@ -101,18 +136,16 @@ export const attendanceService = {
       workingHours: 0,
     };
     
-    // Count working days (Mon-Fri, excluding holidays)
-    const lastDay = new Date(year, month, 0);
-    
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      const date = new Date(year, month - 1, i);
-      const dayOfWeek = date.getDay();
-      
-      // Count weekdays (1-5 = Mon-Fri)
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        summary.totalWorkingDays++;
-      }
-    }
+    // Working days are driven by policy when configured; fallback is Mon–Fri.
+    const employee = await db.employees.get(employeeId);
+    const branchId = employee?.branchId ?? 0;
+    const siteId = employee?.assignedSite;
+    summary.totalWorkingDays = await workCalendarService.getWorkingDaysInMonth({
+      branchId,
+      siteId,
+      month,
+      year,
+    });
     
     records.forEach(record => {
       if (record.status === 'Present') summary.presentDays++;

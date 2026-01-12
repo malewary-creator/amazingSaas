@@ -398,6 +398,11 @@ export interface AuditLog {
   module: string; // 'customers', 'invoices', 'payments'
   action: AuditAction;
   recordId?: number;
+
+  // Enterprise: explicit entity tracking (optional, backwards compatible)
+  entity?: string; // e.g. 'PayrollRun', 'SalarySheet', 'Attendance', 'Leave'
+  entityId?: number;
+  reason?: string; // required for high-risk actions like unlock/override
   
   oldValue?: string; // JSON string
   newValue?: string; // JSON string

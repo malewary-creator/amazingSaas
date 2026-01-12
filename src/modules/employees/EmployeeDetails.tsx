@@ -339,10 +339,10 @@ export const EmployeeDetails: React.FC = () => {
                 </div>
               ))}
               <button
-                onClick={() => navigate('/employees/leaves')}
+                onClick={() => navigate(`/employees/${id}/leaves`)}
                 className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
               >
-                Manage Leaves
+                View Leave History
               </button>
             </div>
           </div>

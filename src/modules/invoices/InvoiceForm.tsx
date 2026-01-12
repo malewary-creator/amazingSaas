@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Trash2, Copy, Save, FileText, AlertCircle, Search, X } from 'lucide-react';
+import { Plus, Trash2, Copy, Save, FileText, AlertCircle, X } from 'lucide-react';
 import { invoicesService } from '@/services/invoicesService';
 import { db } from '@/services/database';
 import type { InvoiceType, InvoiceStatus, GSTType } from '@/types/extended';

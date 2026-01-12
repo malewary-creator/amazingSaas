@@ -56,7 +56,7 @@ const SettingsDashboard: React.FC = () => {
             if (!confirmSeed) return;
             try {
               setSeeding(true);
-              const stats = await seedService.seedDemoData({ reset: false });
+              await seedService.seedDemoData({ reset: false });
               toast.success('Demo data seeded successfully');
               const meta = await settingsService.getBackupMetadata();
               setSummary((s)=>({ ...s, records: meta.recordCount }));
@@ -81,7 +81,7 @@ const SettingsDashboard: React.FC = () => {
             if (!confirmReset) return;
             try {
               setSeeding(true);
-              const stats = await seedService.seedDemoData({ reset: true });
+              await seedService.seedDemoData({ reset: true });
               toast.success('Database reset and demo data seeded successfully');
               const meta = await settingsService.getBackupMetadata();
               setSummary((s)=>({ ...s, records: meta.recordCount }));

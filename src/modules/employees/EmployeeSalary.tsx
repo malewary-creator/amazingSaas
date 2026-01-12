@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { employeeService } from '@/services/employeeService';
 import { salaryService } from '@/services/salaryService';
-import type { Employee, SalarySetup, SalarySheet } from '@/types';
+import type { Employee, PayrollRun, SalarySetup, SalarySheet } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 import {
   ArrowLeft,
   DollarSign,
@@ -20,6 +21,8 @@ export const EmployeeSalary: React.FC = () => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [salarySetup, setSalarySetup] = useState<SalarySetup | null>(null);
   const [salarySheets, setSalarySheets] = useState<SalarySheet[]>([]);
+  const [runsByPeriod, setRunsByPeriod] = useState<Record<string, PayrollRun | null>>({});
+  const [activeRun, setActiveRun] = useState<PayrollRun | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -42,14 +45,25 @@ export const EmployeeSalary: React.FC = () => {
 
         // Load last 6 months salary sheets
         const sheets: SalarySheet[] = [];
+        const runs: Record<string, PayrollRun | null> = {};
         const now = new Date();
         for (let i = 0; i < 6; i++) {
-          const month = now.getMonth() - i + 1;
-          const year = now.getFullYear();
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const month = d.getMonth() + 1;
+          const year = d.getFullYear();
           const sheet = await salaryService.getSalarySheet(empId, month, year);
           if (sheet) sheets.push(sheet);
+
+          // Resolve the PayrollRun for this period (v4+). Non-breaking if missing.
+          const run = await salaryService.getPayrollRun(month, year, emp.branchId ?? 0);
+          runs[`${year}-${month}`] = run || null;
         }
         setSalarySheets(sheets);
+        setRunsByPeriod(runs);
+
+        // Resolve the active PayrollRun for the viewed month (current month).
+        const active = await salaryService.getPayrollRun(now.getMonth() + 1, now.getFullYear(), emp.branchId ?? 0);
+        setActiveRun(active || null);
       }
     } catch (error) {
       console.error('Error loading salary data:', error);
@@ -64,6 +78,10 @@ export const EmployeeSalary: React.FC = () => {
     setGenerating(true);
     try {
       const now = new Date();
+      // Safety: respect run lifecycle (Locked/Paid => no edits / regen).
+      if (activeRun && (activeRun.status === 'Locked' || activeRun.status === 'Paid')) {
+        throw new Error(`Payroll run is ${activeRun.status}; salary regeneration is disabled`);
+      }
       await salaryService.generateMonthlySalarySheet(
         parseInt(id),
         now.getMonth() + 1,
@@ -81,7 +99,8 @@ export const EmployeeSalary: React.FC = () => {
 
   const handleApprove = async (sheetId: number) => {
     try {
-      await salaryService.approveSalarySheet(sheetId, 1); // Replace with actual user ID
+      const { user } = useAuthStore.getState();
+      await salaryService.approveSalarySheet(sheetId, user?.id || 1);
       setMessage({ type: 'success', text: 'Salary sheet approved' });
       await loadSalaryData(parseInt(id!));
       setTimeout(() => setMessage(null), 3000);
@@ -98,7 +117,9 @@ export const EmployeeSalary: React.FC = () => {
     const typedMode = validModes.includes(mode as any) ? (mode as typeof validModes[number]) : 'Bank Transfer';
 
     try {
-      await salaryService.markSalaryAsPaid(sheetId, typedMode);
+      const { user } = useAuthStore.getState();
+      // Keep legacy UI prompt, but store as paymentRef for audit traceability.
+      await salaryService.markSheetPaid(sheetId, typedMode, user?.id || 1, 'Paid via EmployeeSalary UI');
       setMessage({ type: 'success', text: 'Salary marked as paid' });
       await loadSalaryData(parseInt(id!));
       setTimeout(() => setMessage(null), 3000);
@@ -185,8 +206,11 @@ export const EmployeeSalary: React.FC = () => {
         </div>
         <button
           onClick={handleGenerateSalary}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          disabled={
+            generating ||
+            (activeRun ? activeRun.status === 'Locked' || activeRun.status === 'Paid' : false)
+          }
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FileText className="w-4 h-4" />
           {generating ? 'Generating...' : 'Generate This Month'}
@@ -306,15 +330,18 @@ export const EmployeeSalary: React.FC = () => {
                         })}
                       </h3>
                       <span
+                        // Status is read from the PayrollRun lifecycle when present (v4+).
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          sheet.status === 'Paid'
+                          (runsByPeriod[`${sheet.year}-${sheet.month}`]?.status || sheet.status) === 'Paid'
                             ? 'bg-emerald-100 text-emerald-700'
-                            : sheet.status === 'Approved'
+                            : (runsByPeriod[`${sheet.year}-${sheet.month}`]?.status || sheet.status) === 'Locked'
+                              ? 'bg-blue-100 text-blue-700'
+                              : sheet.status === 'Approved'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-amber-100 text-amber-700'
                         }`}
                       >
-                        {sheet.status}
+                        {runsByPeriod[`${sheet.year}-${sheet.month}`]?.status || sheet.status}
                       </span>
                     </div>
 
@@ -347,22 +374,35 @@ export const EmployeeSalary: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        {sheet.status === 'Calculated' && (
+                        {(() => {
+                          const runStatus = runsByPeriod[`${sheet.year}-${sheet.month}`]?.status;
+                          const isLocked = runStatus === 'Locked';
+                          const isPaid = runStatus === 'Paid';
+                          const disableEdits = isLocked || isPaid;
+
+                          return (
+                            <>
+                              {sheet.status === 'Calculated' && (
                           <button
                             onClick={() => handleApprove(sheet.id!)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+                            disabled={disableEdits}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Approve
                           </button>
-                        )}
-                        {sheet.status === 'Approved' && (
+                              )}
+                              {sheet.status === 'Approved' && (
                           <button
                             onClick={() => handleMarkPaid(sheet.id!)}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold"
+                            disabled={disableEdits}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Paid
                           </button>
-                        )}
+                              )}
+                            </>
+                          );
+                        })()}
                         {sheet.status === 'Paid' && sheet.paidOn && (
                           <div className="text-right">
                             <p className="text-xs text-gray-500">Paid on</p>

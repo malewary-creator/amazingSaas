@@ -126,9 +126,9 @@ export function QuotationForm() {
         items.map((item: any, index: number) => ({
           tempId: `item-${index}`,
           lineNumber: item.lineNumber,
-          itemName: item.itemName,
-          description: item.description || '',
-          hsnCode: item.hsnCode || '',
+          component: item.component ?? item.itemName ?? '',
+          specification: item.specification ?? item.description ?? '',
+          hsn: item.hsn ?? item.hsnCode ?? '',
           quantity: item.quantity,
           unit: item.unit,
           unitPrice: item.unitPrice,
@@ -168,8 +168,8 @@ export function QuotationForm() {
     const newItem: LineItem = {
       tempId: `item-${Date.now()}`,
       lineNumber: lineItems.length + 1,
-      itemName: '',
-      description: '',
+      component: '',
+      specification: '',
       hsn: '',
       quantity: 1,
       unit: 'Nos',
@@ -258,7 +258,7 @@ export function QuotationForm() {
         return;
       }
       
-      if (lineItems.some(item => !item.itemName || item.quantity <= 0 || item.unitPrice <= 0)) {
+      if (lineItems.some(item => !item.component || item.quantity <= 0 || item.unitPrice <= 0)) {
         error('Please fill in all line item details');
         return;
       }
@@ -522,8 +522,8 @@ export function QuotationForm() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">#</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Item Name</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Component</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Specification</th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">HSN</th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Unit</th>
@@ -543,19 +543,19 @@ export function QuotationForm() {
                   <td className="px-2 py-2">
                     <input
                       type="text"
-                      value={item.itemName}
-                      onChange={(e) => updateLineItem(item.tempId, 'itemName', e.target.value)}
+                      value={item.component}
+                      onChange={(e) => updateLineItem(item.tempId, 'component', e.target.value)}
                       className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                      placeholder="Item name"
+                      placeholder="Component"
                     />
                   </td>
                   <td className="px-2 py-2">
                     <input
                       type="text"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(item.tempId, 'description', e.target.value)}
+                      value={item.specification}
+                      onChange={(e) => updateLineItem(item.tempId, 'specification', e.target.value)}
                       className="w-40 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                      placeholder="Description"
+                      placeholder="Specification"
                     />
                   </td>
                   <td className="px-2 py-2">

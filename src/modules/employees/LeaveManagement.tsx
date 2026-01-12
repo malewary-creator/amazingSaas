@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { leaveService } from '@/services/leaveService';
 import { employeeService } from '@/services/employeeService';
-import type { Employee, Leave } from '@/types';
+import type { Employee, Leave, LeaveType } from '@/types';
 import { Plus, CheckCircle2, XCircle, AlertCircle, Calendar } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
-const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'LossOfPay'] as const;
+const LEAVE_TYPES: LeaveType[] = ['Casual', 'Sick', 'Earned', 'Loss of Pay'];
 
 export const LeaveManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -17,7 +17,7 @@ export const LeaveManagement: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<number | ''>('');
 
   const [formData, setFormData] = useState({
-    leaveType: 'Casual' as const,
+    leaveType: 'Casual' as LeaveType,
     fromDate: '',
     toDate: '',
     reason: '',
@@ -69,15 +69,38 @@ export const LeaveManagement: React.FC = () => {
     setSubmitting(true);
     try {
       const empId = typeof selectedEmployee === 'string' ? parseInt(selectedEmployee) : selectedEmployee;
+      const { user } = useAuthStore.getState();
+
+      // Enterprise rule: Loss of Pay is always Unpaid and does not consume balance
+      const requestedLeaveType = formData.leaveType;
+      let entitlement: 'Paid' | 'Unpaid' = requestedLeaveType === 'Loss of Pay' ? 'Unpaid' : 'Paid';
+
+      // Balance validation for Paid leaves
+      if (entitlement === 'Paid') {
+        const year = new Date(formData.fromDate).getFullYear();
+        const balance = await leaveService.getLeaveBalance(empId, requestedLeaveType, year);
+        if (days > balance.availableDays) {
+          const confirmUnpaid = window.confirm(
+            `Insufficient ${requestedLeaveType} balance (Available: ${balance.availableDays} days). Apply as Unpaid leave instead?`
+          );
+          if (!confirmUnpaid) {
+            setMessage({ type: 'error', text: 'Insufficient leave balance' });
+            return;
+          }
+          entitlement = 'Unpaid';
+        }
+      }
+
       await leaveService.applyLeave({
         employeeId: empId,
-        leaveType: formData.leaveType,
+        leaveType: requestedLeaveType,
         fromDate: new Date(formData.fromDate),
         toDate: new Date(formData.toDate),
         numberOfDays: days,
-        entitlement: 'Paid',
+        entitlement,
         reason: formData.reason,
         status: 'Applied',
+        appliedBy: user?.id,
       });
 
       setMessage({ type: 'success', text: 'Leave application submitted successfully' });

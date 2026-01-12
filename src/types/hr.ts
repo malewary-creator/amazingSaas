@@ -167,6 +167,7 @@ export interface AdvanceDeduction extends BaseEntity {
 // ==================== MONTHLY SALARY SHEET ====================
 
 export interface SalarySheet extends BaseEntity {
+  payrollRunId?: number; // Links this sheet to a PayrollRun (v4+)
   employeeId: number;
   month: number; // 1-12
   year: number;
@@ -185,6 +186,16 @@ export interface SalarySheet extends BaseEntity {
   hra?: number;
   conveyance?: number;
   otherAllowance?: number;
+
+  // Extended earnings components (enterprise)
+  overtimeAmount?: number;
+  incentiveAmount?: number;
+  bonusAmount?: number;
+  arrearsAmount?: number;
+
+  // Component breakdown (tamper-detected, policy-driven)
+  earningsComponents?: Record<string, number>; // e.g. { baseSalary: 30000, hra: 5000, overtime: 1200 }
+  deductionComponents?: Record<string, number>; // e.g. { advance: 1000, pf: 1800 }
   totalEarnings: number;
   
   // Deductions
@@ -202,9 +213,105 @@ export interface SalarySheet extends BaseEntity {
   approvedOn?: Date;
   paidOn?: Date;
   paymentMode?: 'Cash' | 'Bank Transfer' | 'Cheque';
+  paymentRef?: string; // external reference/UTR/cheque no (optional)
+
+  // Tamper detection
+  hashAlgorithm?: 'SHA-256' | 'FNV-1A-32';
+  integrityHash?: string; // hash over canonical payload
   
   remarks?: string;
   branchId?: number;
+}
+
+// ==================== PAYROLL RUN (ENTERPRISE) ====================
+
+export type PayrollRunStatus = 'Draft' | 'Reviewed' | 'Locked' | 'Paid' | 'Archived';
+
+export interface PayrollRun extends BaseEntity {
+  branchId?: number;
+  siteId?: string;
+
+  month: number; // 1-12
+  year: number;
+
+  status: PayrollRunStatus;
+
+  generatedBy?: number;
+  generatedAt?: Date;
+  reviewedBy?: number;
+  reviewedAt?: Date;
+  lockedBy?: number;
+  lockedAt?: Date;
+  paidBy?: number;
+  paidAt?: Date;
+  archivedAt?: Date;
+
+  // Optional summary fields
+  employeeCount?: number;
+  totalNetPay?: number;
+
+  remarks?: string;
+}
+
+// ==================== POLICY TABLES (EFFECTIVE-DATED) ====================
+
+export interface WorkCalendar extends BaseEntity {
+  branchId?: number;
+  siteId?: string;
+  name: string;
+  effectiveFrom: Date;
+  effectiveTo?: Date;
+
+  // 0=Sun ... 6=Sat
+  weekendDays: number[];
+  timezone?: string; // e.g. 'Asia/Kolkata'
+  status: Status;
+}
+
+export interface WorkCalendarHoliday extends BaseEntity {
+  calendarId: number;
+  date: Date; // date-only semantics
+  name?: string;
+  isWorkingDayOverride?: boolean; // true => treat as working day even if weekend
+}
+
+export interface ShiftTemplate extends BaseEntity {
+  branchId?: number;
+  siteId?: string;
+  name: string;
+  effectiveFrom: Date;
+  effectiveTo?: Date;
+  startTime: string; // '09:00'
+  endTime: string; // '18:00'
+  breakMinutes?: number;
+  graceMinutes?: number;
+  status: Status;
+}
+
+export interface LeavePolicy extends BaseEntity {
+  branchId?: number;
+  name: string;
+  effectiveFrom: Date;
+  effectiveTo?: Date;
+  status: Status;
+
+  // Rules
+  approvalRequired: boolean;
+  allowHalfDay: boolean;
+  allowCarryForward: boolean;
+  carryForwardCapDays?: number;
+}
+
+export interface LeavePolicyEntitlement extends BaseEntity {
+  policyId: number;
+  branchId?: number;
+  employeeCategory?: EmployeeCategory;
+  leaveType: LeaveType;
+
+  year: number;
+  totalDays: number;
+  accrual?: 'Annual' | 'Monthly';
+  status: Status;
 }
 
 // ==================== DAILY OPERATIONAL EXPENSES ====================

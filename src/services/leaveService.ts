@@ -5,6 +5,8 @@
 
 import { db } from './database';
 import type { Leave, LeaveBalance, LeaveType } from '@/types';
+import { auditService } from './auditService';
+import { hrGuards } from './hrGuards';
 
 export const leaveService = {
   async applyLeave(data: Omit<Leave, 'id' | 'createdAt' | 'updatedAt' | 'appliedOn'>): Promise<number> {
@@ -15,7 +17,16 @@ export const leaveService = {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    return (await db.leaves.add(leave)) as number;
+    const id = (await db.leaves.add(leave)) as number;
+    await auditService.logEvent('hr.leave', 'Create', {
+      entity: 'Leave',
+      entityId: id,
+      recordId: id,
+      newValue: leave,
+      branchId: (leave as any).branchId,
+      userId: (leave as any).appliedBy,
+    });
+    return id;
   },
 
   async approveLeave(
@@ -23,6 +34,10 @@ export const leaveService = {
     approvedBy: number,
     approvalRemarks?: string
   ): Promise<void> {
+    const existing = await db.leaves.get(leaveId);
+    if (!existing) throw new Error('Leave record not found');
+    hrGuards.assertLeaveStatusChangeAllowed(existing, 'Approved');
+
     await db.leaves.update(leaveId, {
       status: 'Approved',
       approvedBy,
@@ -30,13 +45,38 @@ export const leaveService = {
       approvalRemarks,
       updatedAt: new Date(),
     });
+
+    const updated = await db.leaves.get(leaveId);
+    await auditService.logEvent('hr.leave', 'Approve', {
+      entity: 'Leave',
+      entityId: leaveId,
+      recordId: leaveId,
+      oldValue: existing,
+      newValue: updated,
+      userId: approvedBy,
+      branchId: existing.branchId,
+    });
   },
 
   async rejectLeave(leaveId: number, rejectionReason?: string): Promise<void> {
+    const existing = await db.leaves.get(leaveId);
+    if (!existing) throw new Error('Leave record not found');
+    hrGuards.assertLeaveStatusChangeAllowed(existing, 'Rejected');
+
     await db.leaves.update(leaveId, {
       status: 'Rejected',
       rejectionReason,
       updatedAt: new Date(),
+    });
+
+    const updated = await db.leaves.get(leaveId);
+    await auditService.logEvent('hr.leave', 'Reject', {
+      entity: 'Leave',
+      entityId: leaveId,
+      recordId: leaveId,
+      oldValue: existing,
+      newValue: updated,
+      branchId: existing.branchId,
     });
   },
 
@@ -55,16 +95,52 @@ export const leaveService = {
     
     const approvedLeaves = leaves.filter(l => l.status === 'Approved');
     const usedDays = approvedLeaves.reduce((sum, l) => sum + l.numberOfDays, 0);
-    
-    // Default allocation (can be customized per leave type)
-    const allocationMap: Record<LeaveType, number> = {
-      'Casual': 12,
-      'Sick': 6,
-      'Earned': 10,
-      'Loss of Pay': 0,
-    };
-    
-    const totalDays = allocationMap[leaveType] || 0;
+
+    // Policy-driven entitlement (effective: per-year entry)
+    let totalDays = 0;
+    try {
+      const emp = await db.employees.get(employeeId);
+      const branchId = emp?.branchId;
+      const category = emp?.category;
+
+      // Find an active entitlement for the year, most specific first.
+      const entitlements = await db.leaveEntitlements
+        .where('leaveType')
+        .equals(leaveType)
+        .filter((e) =>
+          e.status === 'active' &&
+          e.year === year &&
+          (!branchId || !e.branchId || e.branchId === branchId) &&
+          (!category || !e.employeeCategory || e.employeeCategory === category)
+        )
+        .toArray();
+
+      const best = entitlements.sort((a, b) => {
+        const aSpecific = (a.branchId ? 1 : 0) + (a.employeeCategory ? 1 : 0);
+        const bSpecific = (b.branchId ? 1 : 0) + (b.employeeCategory ? 1 : 0);
+        return bSpecific - aSpecific;
+      })[0];
+
+      if (best) totalDays = best.totalDays;
+    } catch {
+      // If policy tables are empty/unavailable, fall back to defaults.
+    }
+
+    // Default allocation (backward compatible)
+    if (!totalDays) {
+      const allocationMap: Record<LeaveType, number> = {
+        Casual: 12,
+        Sick: 6,
+        Earned: 10,
+        'Loss of Pay': 0,
+      };
+      totalDays = allocationMap[leaveType] || 0;
+    }
+
+    // Loss of Pay is unlimited unpaid; do not show negative balances.
+    if (leaveType === 'Loss of Pay') {
+      totalDays = 0;
+    }
     
     return {
       employeeId,
@@ -72,7 +148,7 @@ export const leaveService = {
       year,
       totalDays,
       usedDays,
-      availableDays: totalDays - usedDays,
+      availableDays: leaveType === 'Loss of Pay' ? 0 : Math.max(0, totalDays - usedDays),
     };
   },
 
@@ -135,6 +211,8 @@ export const leaveService = {
   async cancelLeave(leaveId: number): Promise<void> {
     const leave = await db.leaves.get(leaveId);
     if (!leave) throw new Error('Leave record not found');
+
+    hrGuards.assertLeaveStatusChangeAllowed(leave, 'Cancelled');
     
     if (new Date(leave.fromDate) < new Date()) {
       throw new Error('Cannot cancel leave that has already started');
@@ -143,6 +221,17 @@ export const leaveService = {
     await db.leaves.update(leaveId, {
       status: 'Cancelled',
       updatedAt: new Date(),
+    });
+
+    const updated = await db.leaves.get(leaveId);
+    await auditService.logEvent('hr.leave', 'Update', {
+      entity: 'Leave',
+      entityId: leaveId,
+      recordId: leaveId,
+      oldValue: leave,
+      newValue: updated,
+      branchId: leave.branchId,
+      reason: 'Cancelled by user',
     });
   },
 };

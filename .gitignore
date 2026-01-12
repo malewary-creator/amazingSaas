@@ -35,3 +35,6 @@ backups/
 # Uploaded files (if stored locally)
 uploads/
 temp/
+
+# Firebase
+.firebase/

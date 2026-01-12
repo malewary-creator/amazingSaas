@@ -265,7 +265,7 @@ export async function seedDemoData(options?: { reset?: boolean; counts?: SeedCou
   for (let i = 1; i <= counts.customers; i++) {
     customers.push(makeCustomer(i));
   }
-  const customerIds = await db.customers.bulkAdd(customers);
+  await db.customers.bulkAdd(customers);
 
   // Leads
   const leads: Lead[] = [];
@@ -293,7 +293,7 @@ export async function seedDemoData(options?: { reset?: boolean; counts?: SeedCou
     const customer = await db.customers.get(lead.customerId);
     quotations.push(makeQuotation(lead.id as number, customer?.id as number, i));
   }
-  const quotationIds = await db.quotations.bulkAdd(quotations);
+  await db.quotations.bulkAdd(quotations);
   const insertedQuotations = await db.quotations.toArray();
 
   // Quotation Items
@@ -333,7 +333,7 @@ export async function seedDemoData(options?: { reset?: boolean; counts?: SeedCou
       updatedAt: new Date(),
     } as Project);
   }
-  const projectIds = await db.projects.bulkAdd(projects);
+  await db.projects.bulkAdd(projects);
   const projectsAll = await db.projects.toArray();
 
   // Project Stages
@@ -395,7 +395,7 @@ export async function seedDemoData(options?: { reset?: boolean; counts?: SeedCou
       for (let j = 0; j < numItems; j++) {
         const item = randomOf(itemsAll);
         const qty = 1 + Math.floor(Math.random() * 10);
-        const unitPrice = item.sellingPrice || item.unitCost || 5000;
+        const unitPrice = item.sellingPrice ?? item.mrp ?? item.purchasePrice ?? 5000;
         const discount = Math.random() > 0.7 ? Math.floor(Math.random() * 15) : 0;
         const discountAmt = Math.round((unitPrice * qty * discount) / 100);
         const taxableAmount = unitPrice * qty - discountAmt;
@@ -411,10 +411,10 @@ export async function seedDemoData(options?: { reset?: boolean; counts?: SeedCou
         invoiceItems.push({
           invoiceId: undefined, // Will be set after invoice is created
           lineNumber: j + 1,
-          itemName: (item as any).itemName || item.name || `Item ${j + 1}`,
-          description: item.description || item.specification || 'Demo line item',
-          hsnCode: (item as any).hsnCode || '853651',
-          sacCode: (item as any).sacCode || '',
+          itemName: item.name || `Item ${j + 1}`,
+          description: item.specification || 'Demo line item',
+          hsnCode: item.hsn || '853651',
+          sacCode: '',
           quantity: qty,
           unit: item.unit || 'Unit',
           unitPrice,

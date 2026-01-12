@@ -4,6 +4,7 @@
  */
 
 import Dexie, { Table } from 'dexie';
+import { migrateLegacySalarySheetsToRuns } from './payrollMigration';
 import type {
   User,
   Role,
@@ -41,6 +42,12 @@ import type {
   DailyExpense,
   WorkAssignment,
   EmployeeNote,
+  PayrollRun,
+  WorkCalendar,
+  WorkCalendarHoliday,
+  ShiftTemplate,
+  LeavePolicy,
+  LeavePolicyEntitlement,
 } from '@/types';
 
 export class ShineSolarDB extends Dexie {
@@ -99,6 +106,14 @@ export class ShineSolarDB extends Dexie {
   // Audit & Security
   auditLogs!: Table<AuditLog, number>;
 
+  // Enterprise HR & Payroll
+  payrollRuns!: Table<PayrollRun, number>;
+  workCalendars!: Table<WorkCalendar, number>;
+  workCalendarHolidays!: Table<WorkCalendarHoliday, number>;
+  shiftTemplates!: Table<ShiftTemplate, number>;
+  leavePolicies!: Table<LeavePolicy, number>;
+  leaveEntitlements!: Table<LeavePolicyEntitlement, number>;
+
   // HR & Employees
   employees!: Table<Employee, number>;
   salarySetups!: Table<SalarySetup, number>;
@@ -114,6 +129,29 @@ export class ShineSolarDB extends Dexie {
 
   constructor() {
     super('ShineSolarDB');
+
+    const sha256Hex = async (input: string): Promise<{ alg: 'SHA-256' | 'FNV-1A-32'; hash: string }> => {
+      try {
+        if (typeof crypto !== 'undefined' && crypto.subtle) {
+          const bytes = new TextEncoder().encode(input);
+          const digest = await crypto.subtle.digest('SHA-256', bytes);
+          const hex = Array.from(new Uint8Array(digest))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+          return { alg: 'SHA-256', hash: hex };
+        }
+      } catch {
+        // fall through
+      }
+
+      // FNV-1a 32-bit fallback (non-cryptographic; better than nothing offline)
+      let hash = 0x811c9dc5;
+      for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+      }
+      return { alg: 'FNV-1A-32', hash: hash.toString(16).padStart(8, '0') };
+    };
 
     this.version(1).stores({
       // User Management
@@ -194,6 +232,39 @@ export class ShineSolarDB extends Dexie {
       employeeNotes: '++id, employeeId, noteType, createdBy',
       dailyExpenses: '++id, expenseId, date, category, projectId, status, branchId',
     });
+
+    // Enterprise HR & Payroll schema evolution (backwards compatible)
+    this.version(4)
+      .stores({
+        // Extend indexes (no breaking changes)
+        auditLogs: '++id, userId, module, action, timestamp, branchId, entity, entityId',
+
+        // Payroll runs (unique enforced in service)
+        payrollRuns: '++id, [branchId+year+month], year, month, status, siteId',
+
+        // Salary sheets now belong to a payroll run
+        salarySheets: '++id, employeeId, payrollRunId, [payrollRunId+employeeId], [month+year], status, branchId',
+
+        // Policy tables
+        workCalendars: '++id, branchId, siteId, effectiveFrom, status, [branchId+siteId+effectiveFrom]',
+        workCalendarHolidays: '++id, calendarId, date, [calendarId+date]',
+        shiftTemplates: '++id, branchId, siteId, effectiveFrom, status, [branchId+siteId+effectiveFrom]',
+        leavePolicies: '++id, branchId, effectiveFrom, status, [branchId+effectiveFrom]',
+        leaveEntitlements: '++id, policyId, leaveType, year, status, [policyId+leaveType+year]',
+      })
+      .upgrade(async (tx) => {
+        // Migration (financial-safety): link legacy salarySheets to payrollRuns without altering amounts or timestamps.
+        const salarySheetsTable = (tx as any).table('salarySheets');
+        const payrollRunsTable = (tx as any).table('payrollRuns');
+        const auditLogsTable = (tx as any).table('auditLogs');
+
+        await migrateLegacySalarySheetsToRuns({
+          salarySheetsTable,
+          payrollRunsTable,
+          auditLogsTable,
+          sha256Hex,
+        });
+      });
   }
 
   /**
